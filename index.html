@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minorange - 建设中</title>
+    <style>
+        /* 基础重置 + 全屏居中 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;          /* 禁止滚动，全屏沉浸 */
+            background-color: #0a0c1a; /* 深空底色，作为画布背景的备用 */
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+        }
+
+        /* 画布：铺满屏幕，星星绘制在这里 */
+        #starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 1;
+            background: radial-gradient(circle at 20% 30%, #0b0e22, #05060e 90%);
+        }
+
+        /* 文本容器：绝对定位居中，置于画布上方 */
+        .message-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            pointer-events: none;      /* 让鼠标穿透，不影响星星交互（无交互但保持干净） */
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        /* 中央文本样式 —— 优雅、略有星光感 */
+        .message {
+            font-size: clamp(1.8rem, 8vw, 4.2rem);
+            font-weight: 400;
+            letter-spacing: 0.08em;
+            color: #f0f3ff;
+            text-shadow: 
+                0 0 10px rgba(210, 230, 255, 0.8),
+                0 0 30px rgba(140, 180, 255, 0.6),
+                0 0 60px rgba(80, 130, 255, 0.4),
+                0 0 100px rgba(40, 80, 200, 0.2);
+            background: linear-gradient(135deg, #ffffff 0%, #e0ecff 45%, #b8d0ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;           /* 让渐变文字透出背景，但保留阴影可见 */
+            /* 为了阴影不被裁切，增加一层后备颜色 */
+            -webkit-text-fill-color: transparent;
+            /* 但是完全透明会看不到文字，所以用伪元素或另一层？实际上使用背景裁切时，
+               文字颜色透明，阴影显示在文字轮廓上? 需要调整: 取消颜色透明，使用背景裁切+阴影会冲突。
+               为了达到发光渐变，改为纯色+发光阴影更稳妥，同时使用微妙的渐变叠加。 
+               这里重写: 简单优雅纯色加发光，保留可读性 */
+            color: #eef3ff;                /* 回退颜色 */
+            background: none;
+            -webkit-background-clip: unset;
+            background-clip: unset;
+            -webkit-text-fill-color: unset;
+            text-shadow: 
+                0 0 12px rgba(200, 225, 255, 0.9),
+                0 0 35px rgba(120, 170, 255, 0.7),
+                0 0 70px rgba(60, 110, 240, 0.5),
+                0 0 120px rgba(30, 70, 200, 0.3);
+            animation: messagePulse 4s ease-in-out infinite alternate;
+            white-space: nowrap;           /* 禁止换行，保证「XXXX。」在同一行 */
+        }
+
+        /* 增加细微的呼吸感 */
+        @keyframes messagePulse {
+            0% {
+                text-shadow: 
+                    0 0 10px rgba(210, 230, 255, 0.8),
+                    0 0 28px rgba(130, 170, 255, 0.6),
+                    0 0 60px rgba(70, 120, 255, 0.4),
+                    0 0 100px rgba(40, 80, 200, 0.2);
+                opacity: 0.95;
+            }
+            100% {
+                text-shadow: 
+                    0 0 15px rgba(230, 245, 255, 1),
+                    0 0 45px rgba(150, 190, 255, 0.8),
+                    0 0 90px rgba(90, 140, 255, 0.6),
+                    0 0 140px rgba(50, 100, 230, 0.4);
+                opacity: 1;
+            }
+        }
+
+        /* 对于非常小的屏幕，让文字缩放舒适 */
+        @media (max-width: 480px) {
+            .message {
+                white-space: normal;      /* 如果屏幕实在太窄可以换行，但基本不会 */
+                font-size: 1.5rem;
+                letter-spacing: 0.05em;
+            }
+        }
+
+        /* 可选的细微闪烁星星层（在画布上模拟额外随机闪烁，但画布已包含） */
+        /* 保持纯净 */
+    </style>
+</head>
+<body>
+    <!-- 星空画布 -->
+    <canvas id="starfield"></canvas>
+
+    <!-- 中央文字 -->
+    <div class="message-wrapper">
+        <div class="message">我知道你尝试访问，少终旅行。👁️</div>
+    </div>
+
+    <script>
+        (function() {
+            const canvas = document.getElementById('starfield');
+            const ctx = canvas.getContext('2d');
+
+            // 星星数组
+            let stars = [];
+            // 星星数量，根据屏幕尺寸动态调整，保证视觉效果
+            let starCount = 400;
+
+            // 用于记录画布尺寸
+            let width, height;
+
+            // 设备像素比，用于高清屏适配
+            const dpr = window.devicePixelRatio || 1;
+
+            // 初始化星星数据
+            function initStars(count) {
+                stars = [];
+                for (let i = 0; i < count; i++) {
+                    stars.push({
+                        x: Math.random(),            // 归一化坐标 0-1，便于resize自适应
+                        y: Math.random(),
+                        radius: Math.random() * 1.6 + 0.5,  // 半径范围 0.5~2.1px
+                        // 基础透明度/亮度
+                        brightness: Math.random() * 0.7 + 0.3,
+                        // 闪烁速度/相位
+                        twinkleSpeed: Math.random() * 0.02 + 0.005,
+                        twinklePhase: Math.random() * Math.PI * 2,
+                        // 给部分星星增加微弱的颜色变化（冷色调）
+                        color: Math.random() > 0.7 ? 
+                               `rgba(200, 220, 255, ${Math.random() * 0.5 + 0.5})` : 
+                               `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.5})`
+                    });
+                }
+            }
+
+            // 更新星星数量基于屏幕面积（保持视觉密度舒适）
+            function updateStarCountByArea() {
+                const area = width * height;
+                // 基准：屏幕面积 (1920*1080 ≈ 2,073,600) 对应 500 颗星星左右
+                // 限制最少 200，最多 800
+                let count = Math.floor(area / 4500); 
+                count = Math.min(800, Math.max(200, count));
+                // 如果和当前星星数量差异较大，则重新生成
+                if (stars.length === 0 || Math.abs(stars.length - count) > 60) {
+                    starCount = count;
+                    initStars(starCount);
+                }
+            }
+
+            // 调整画布尺寸并适配像素比
+            function resizeCanvas() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+
+                // 设置画布实际像素尺寸（乘 dpr 保证清晰度）
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+
+                // 用 CSS 保持显示尺寸为视口大小 (但 canvas 已被 css 设为100%宽高，此处会覆盖style? 需要同时设置style)
+                // 但因为 css 已经限制宽高为100%，且 canvas 默认显示尺寸由 width/height 属性控制，
+                // 设置属性后显示尺寸会变成 width px * dpr，导致溢出。所以必须用 style 强制显示尺寸。
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+
+                // 重置变换矩阵并缩放，使绘制坐标使用 CSS 像素为单位（逻辑尺寸）
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(dpr, dpr);
+
+                // 根据新面积调整星星数量并重新初始化（保持密度）
+                updateStarCountByArea();
+
+                // 如果星星数量微调但未触发初始化，仍然保留已有星星（此时星星的归一化坐标不受影响）
+                // 但如果星星数量重新生成，已经包含在 updateStarCountByArea 里了
+            }
+
+            // 绘制一帧
+            function drawStars() {
+                // 清空画布（使用深色渐变或半透明清空？使用完全清空再绘制背景？）
+                // 为了显示背景渐变，我们不用clearRect，直接使用fillRect填充深色背景？
+                // 但背景其实已经在css里有了径向渐变，canvas本身透明。
+                // 但我们希望星星在深色背景上更加突出，并且清除上一帧的星星。
+                // 可以直接清除画布，让css背景显示出来。
+                ctx.clearRect(0, 0, width, height);
+
+                // 为了增加星空深邃感，在画布上叠加一个非常微弱的径向渐变（几乎透明），或者不做
+                // 但canvas背景透明，星星直接画即可。css深色背景会透出。
+                // 绘制每一颗星星
+                const time = Date.now() / 1000; // 秒为单位，用于闪烁相位
+
+                for (let i = 0; i < stars.length; i++) {
+                    const star = stars[i];
+                    // 归一化坐标转屏幕像素坐标（基于当前画布逻辑尺寸）
+                    const x = star.x * width;
+                    const y = star.y * height;
+
+                    // 计算闪烁：使用正弦波，使透明度在brightness基础上波动
+                    // 速度因子缩放
+                    const twinkle = Math.sin(time * star.twinkleSpeed * 10 + star.twinklePhase) * 0.25 + 0.75;
+                    // 最终透明度
+                    const alpha = Math.min(1, star.brightness * twinkle * 1.2);
+
+                    // 绘制星星（圆形，有柔和的边缘）
+                    // 使用径向渐变或者简单的 arc 带透明度
+                    ctx.beginPath();
+                    // 星星尺寸也可以随闪烁微微变化，增强生动感
+                    const radius = star.radius * (0.9 + twinkle * 0.2);
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+                    // 根据星星大小和颜色绘制
+                    // 小星星使用纯色填充；大星星可以添加光晕（但为性能考虑，统一用填充+阴影会有点慢，但星星数量不多可以接受）
+                    // 为了更好的效果，给大星星加一点发光
+                    if (star.radius > 1.5) {
+                        // 大星星使用柔和光晕
+                        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 3);
+                        gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                        gradient.addColorStop(0.4, `rgba(200, 220, 255, ${alpha * 0.7})`);
+                        gradient.addColorStop(1, `rgba(120, 160, 255, 0)`);
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius * 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        // 中心亮核
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius * 0.8, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                        ctx.fill();
+                    } else {
+                        // 普通小星星
+                        ctx.fillStyle = star.color.replace(/[\d.]+\)$/, `${alpha})`); // 替换原有的透明度
+                        // 但 star.color 存储的是rgba字符串，替换会有风险，更稳健：重新生成
+                        // 简单处理：用白色/淡蓝色并设置透明度
+                        if (star.color.includes('200, 220, 255')) {
+                            ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
+                        } else {
+                            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                        }
+                        ctx.fill();
+                    }
+
+                    // 给一些星星增加非常淡的十字星芒？考虑到性能，省略。
+                }
+
+                // 添加几颗偶尔划过的小流星？ 为了简洁，不添加，保持星空纯净。
+                // 但为了动效丰富，我们可以在画布上再叠加一些随机闪烁的点（已经通过正弦实现）
+
+                // 继续下一帧
+                requestAnimationFrame(drawStars);
+            }
+
+            // 启动动画
+            function startAnimation() {
+                resizeCanvas();
+                initStars(starCount);  // 首次初始化
+
+                // 监听窗口大小变化，重新调整画布和星星密度
+                window.addEventListener('resize', () => {
+                    // 防抖处理，避免频繁重置
+                    if (window._resizeTimer) clearTimeout(window._resizeTimer);
+                    window._resizeTimer = setTimeout(() => {
+                        resizeCanvas();
+                        // 如果 resize 后星星数量变化不大，保留现有星星，只调整坐标归一化是安全的；
+                        // 但 updateStarCountByArea 可能重新生成星星数组，但已有星星会丢失，
+                        // 这没关系，重新生成也是随机的，观感依旧。
+                    }, 100);
+                });
+
+                // 开始绘制
+                drawStars();
+            }
+
+            // 页面加载完成后启动
+            window.addEventListener('load', startAnimation);
+
+            // 若页面在加载前已经处于可见状态，也尽快启动（但load一般很快）
+            // 但以防万一，使用DOMContentLoaded作为后备
+            if (document.readyState === 'complete') {
+                startAnimation();
+            } else {
+                document.addEventListener('DOMContentLoaded', startAnimation);
+            }
+        })();
+    </script>
+</body>
+</html>
