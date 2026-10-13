@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>少终旅行 · 酒馆世界地图（临时占位页 v0.1）</title>
+<style>
+:root{
+  --ink:#070a12; --panel:#141a2c; --panel2:#1c2440; --line:#2c3556;
+  --txt:#e8edff; --dim:#97a3ca; --gold:#ffcc55; --green:#6cc24a;
+  --red:#ff5f5f; --cyan:#5ad7ff; --purple:#a97bff;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; overflow:hidden; display:flex; flex-direction:column;
+  font-family:"Zpix","Silkscreen","WenQuanYi Micro Hei","Microsoft YaHei",system-ui,sans-serif;
+  color:var(--txt); background:#070a12;
+  background-image:radial-gradient(circle at 50% -10%, #1d2a4d 0%, #0b1020 55%, #05070d 100%);
+  transition:background .8s ease;
+}
+body.day{background-image:radial-gradient(circle at 50% -10%, #4a7fd0 0%, #9fd0f5 45%, #dff0ff 100%)}
+body.day{--panel:#e8f2ff; --panel2:#d3e6ff; --line:#8fb4e0; --txt:#132038; --dim:#4a6288}
+
+/* ---------- 顶部 HUD ---------- */
+header{
+  flex:0 0 auto; display:flex; align-items:center; gap:14px;
+  padding:10px 16px; background:linear-gradient(#141a2ce6,#141a2cb3);
+  border-bottom:3px solid #000; box-shadow:0 4px 0 #00000055; z-index:20;
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo .cube{width:26px;height:26px;background:linear-gradient(150deg,#8bd44f,#3f7f2c);border:3px solid #000;box-shadow:0 0 0 2px #00000040, inset 0 -6px 0 #00000030;animation:spinCube 6s steps(8) infinite}
+@keyframes spinCube{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.logo b{font-size:15px;letter-spacing:1px}
+.logo small{display:block;color:var(--dim);font-size:10px;letter-spacing:2px}
+nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+nav a{
+  padding:7px 11px; font-size:12px; color:var(--txt); text-decoration:none;
+  background:var(--panel2); border:2px solid #000; box-shadow:0 3px 0 #00000070;
+}
+nav a:hover{background:#2b3560}
+body.day nav a:hover{background:#bcd9ff}
+nav a.on{background:var(--gold);color:#241a00;box-shadow:0 3px 0 #00000070,0 0 12px #ffcc5577}
+.tools{display:flex;gap:6px;margin-left:10px}
+.btn{
+  font:inherit; font-size:12px; padding:7px 11px; cursor:pointer; color:var(--txt);
+  background:var(--panel2); border:2px solid #000; box-shadow:0 3px 0 #00000070;
+}
+.btn:hover{background:#2b3560}
+body.day .btn:hover{background:#bcd9ff}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #00000070}
+.btn.g{background:#2f7a3a}.btn.g:hover{background:#3c9a49}
+.btn.r{background:#8a2b2b}.btn.r:hover{background:#b03535}
+.btn.on{background:var(--gold);color:#241a00}
+
+/* ---------- 主布局 ---------- */
+main{
+  flex:1 1 auto; min-height:0; display:grid; gap:12px; padding:12px;
+  grid-template-columns:270px minmax(0,1fr) 320px;
+}
+.card{
+  background:var(--panel); border:3px solid #000; box-shadow:0 5px 0 #00000055;
+  display:flex; flex-direction:column; min-height:0;
+}
+.card h3{
+  margin:0; padding:9px 12px; font-size:12px; letter-spacing:2px;
+  background:var(--panel2); border-bottom:3px solid #000; display:flex; align-items:center; gap:6px;
+}
+.card h3 span{margin-left:auto;color:var(--dim);font-weight:400}
+.body{padding:10px 12px; overflow:auto; min-height:0; font-size:12px; line-height:1.7}
+
+/* 左栏 */
+.tabs{display:flex;flex-direction:column;gap:6px;padding:10px}
+.tab{
+  text-align:left; font:inherit; font-size:13px; padding:9px 11px; cursor:pointer; color:var(--txt);
+  background:var(--panel2); border:2px solid #000; box-shadow:0 3px 0 #00000070; position:relative;
+}
+.tab:hover{background:#2b3560}
+body.day .tab:hover{background:#bcd9ff}
+.tab.on{background:var(--gold);color:#241a00}
+.tab i{font-style:normal;float:right;opacity:.7}
+.legend{display:flex;flex-direction:column;gap:5px;padding:0 12px 8px;color:var(--dim);font-size:11px}
+.legend div{display:flex;align-items:center;gap:6px}
+.quest{
+  margin:8px 12px 12px; padding:9px; font-size:11.5px; min-height:62px;
+  background:#0e1220; border:2px dashed var(--line); color:var(--dim);
+}
+body.day .quest{background:#fff}
+.quest b{color:var(--gold)}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 12px}
+.acts .btn.wide{grid-column:1/-1}
+
+/* 舞台 */
+.stage{position:relative;overflow:hidden}
+#map{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#map.drag{cursor:grabbing}
+#tilt{transform-origin:50% 50%; transition:transform .8s cubic-bezier(.3,1.4,.4,1)}
+#tilt.blueprint{transform:scaleY(.45)}
+.stage-hint{
+  position:absolute;left:10px;bottom:8px;font-size:10px;color:var(--dim);
+  background:#00000066;padding:4px 8px;border:2px solid #00000055;pointer-events:none;
+}
+.coord{position:absolute;right:10px;top:8px;font-size:10px;color:var(--dim);background:#00000066;padding:4px 8px;pointer-events:none}
+.overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.cloud{position:absolute;height:40px;width:180px;border-radius:50%;filter:blur(22px);background:#ffffff14;animation:drift linear infinite}
+body.day .cloud{background:#ffffffaa}
+@keyframes drift{from{transform:translateX(-30vw)}to{transform:translateX(120vw)}}
+.crt{
+  position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.35;
+  background:repeating-linear-gradient(0deg,#0000 0 2px,#00000055 2px 4px);
+  mix-blend-mode:multiply;
+}
+.scan{position:fixed;left:0;right:0;height:120px;z-index:61;pointer-events:none;
+  background:linear-gradient(#ffffff00,#ffffff10,#ffffff00);animation:scan 7s linear infinite;opacity:.5}
+@keyframes scan{from{transform:translateY(-140px)}to{transform:translateY(105vh)}}
+
+/* 地图元素 */
+.blk{animation:riseIn .7s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes riseIn{from{opacity:0;transform:translateY(90px)}to{opacity:1;transform:translateY(0)}}
+.blk>.face{transition:filter .3s}
+.blk.tree{animation:riseIn .7s cubic-bezier(.2,1.5,.4,1) both, sway 3.6s .7s ease-in-out infinite alternate}
+@keyframes sway{from{transform:translateY(0)}to{transform:translateY(-5px)}}
+.water{animation:wave 3s ease-in-out infinite}
+@keyframes wave{0%,100%{opacity:.72}50%{opacity:1}}
+.lava{animation:glow 1.8s ease-in-out infinite}
+@keyframes glow{0%,100%{opacity:.85}50%{opacity:1;filter:brightness(1.5)}}
+.spark{animation:ember 3s linear infinite}
+@keyframes ember{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-70px)}}
+.marker{cursor:pointer}
+.marker .cnt{transition:transform .8s cubic-bezier(.3,1.4,.4,1)}
+.marker .mInner{animation:bob 3s ease-in-out infinite alternate}
+@keyframes bob{from{transform:translateY(0)}to{transform:translateY(-7px)}}
+.ring{fill:none;stroke:var(--gold);stroke-width:2;animation:ringPulse 2.6s ease-out infinite}
+.ring2{fill:none;stroke:var(--gold);stroke-width:1.5;animation:ringPulse 2.6s ease-out infinite 1.3s}
+@keyframes ringPulse{0%{transform:scale(.5);opacity:.85}100%{transform:scale(1.7);opacity:0}}
+.marker.locked .ring,.marker.locked .ring2{stroke:#8a93b5}
+.plate{stroke:#000;stroke-width:3}
+.marker .label{opacity:0;transition:opacity .2s,transform .2s}
+.marker:hover .label,.marker.sel .label{opacity:1}
+.marker:hover .plate,.marker.sel .plate{filter:drop-shadow(0 0 8px #ffcc55)}
+.marker.sel .ring{stroke:#fff;animation-duration:1.4s}
+.marker.locked{cursor:not-allowed}
+.marker.hidden{display:none}
+
+/* 右栏详情 */
+.art{
+  height:120px;margin:10px 12px;border:3px solid #000;display:grid;place-items:center;
+  color:#ffffff88;font-size:10px;text-align:center;letter-spacing:1px;
+  background:
+    linear-gradient(135deg,#ffffff10 25%,#0000 25%,#0000 50%,#ffffff10 50%,#ffffff10 75%,#0000 75%) 0 0/16px 16px,
+    linear-gradient(160deg,#3a4a7a,#1a2140);
+  animation:artPulse 4s ease-in-out infinite;
+}
+@keyframes artPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+.kv{display:grid;grid-template-columns:70px 1fr;gap:4px 8px;padding:0 12px;font-size:11.5px}
+.kv b{color:var(--dim);font-weight:400}
+.tags{display:flex;flex-wrap:wrap;gap:5px;padding:8px 12px 0}
+.tag{font-size:10px;padding:3px 7px;background:var(--panel2);border:2px solid #000;color:var(--dim)}
+.go{margin:12px;display:block;text-align:center;text-decoration:none;font-size:13px;padding:10px;
+  background:var(--green);color:#08210a;border:3px solid #000;box-shadow:0 4px 0 #00000070}
+.go:hover{filter:brightness(1.12)}
+.go:active{transform:translateY(2px);box-shadow:0 2px 0 #00000070}
+.empty{padding:26px 16px;text-align:center;color:var(--dim);font-size:11.5px;line-height:2}
+
+/* ---------- 底部 ---------- */
+footer{flex:0 0 auto;border-top:3px solid #000;background:#141a2ce6;z-index:20}
+.fbar{display:flex;align-items:center;gap:10px;padding:6px 14px;font-size:10.5px;color:var(--dim)}
+.fbar .dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.notes{display:none;padding:0 14px 12px;font-size:11px;line-height:1.8;color:var(--dim)}
+.notes.on{display:block}
+.notes code{background:#00000055;padding:1px 5px;color:var(--cyan)}
+.notes li{margin:2px 0}
+
+/* 末日特效 */
+body.doomsday{animation:quake .35s steps(2) infinite}
+@keyframes quake{0%{transform:translate(0,0)}25%{transform:translate(-3px,2px)}50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,-3px)}}
+#flash{position:fixed;inset:0;z-index:55;pointer-events:none;background:#ff2200;opacity:0}
+body.doomsday #flash{animation:flash 2.4s ease-out}
+@keyframes flash{0%{opacity:0}8%{opacity:.55}20%{opacity:.1}35%{opacity:.4}100%{opacity:0}}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%) translateY(20px);z-index:70;
+  background:#0e1220ee;border:3px solid #000;box-shadow:0 5px 0 #00000060;color:var(--txt);
+  padding:9px 16px;font-size:12px;opacity:0;pointer-events:none;transition:all .25s}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.star{position:fixed;background:#fff;border-radius:50%;z-index:1;animation:twinkle linear infinite}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.9}}
+body.day .star{display:none}
+@media (max-width:1100px){
+  main{grid-template-columns:230px minmax(0,1fr);}
+  .card.detail{display:none}
+}
+</style>
+</head>
+<body>
+<div class="star-field" id="starField"></div>
+<div class="crt"></div><div class="scan"></div><div id="flash"></div>
+
+<header>
+  <div class="logo">
+    <div class="cube"></div>
+    <div><b>少终旅行 · Paradox III 酒馆</b><small>TAVERN WORLD MAP / TEMP v0.1</small></div>
+  </div>
+  <nav>
+    <a href="#" class="on" data-target="/tavern">大厅</a>
+    <a href="#" data-target="/world">世界地图</a>
+    <a href="#" data-target="/quests">任务墙</a>
+    <a href="#" data-target="/forge">锻造厂</a>
+    <a href="#" data-target="/about">关于</a>
+  </nav>
+  <div class="tools">
+    <button class="btn" id="btnDay">☀ 昼夜</button>
+    <button class="btn" id="btnBlue">▤ 蓝图</button>
+  </div>
+</header>
+
+<main>
+  <!-- 左：控制 -->
+  <section class="card">
+    <h3>区域选择 <span>REGION</span></h3>
+    <div class="tabs" id="tabs"></div>
+    <div class="legend">
+      <div>🟡 已解锁 · 可进入</div>
+      <div>💀 高危区 · 谨慎前往</div>
+      <div>🔒 未解锁 · 占位锁定</div>
+    </div>
+    <h3>当前任务 <span>QUEST</span></h3>
+    <div class="acts" style="padding-top:10px">
+      <button class="btn" id="btnRandom">🎲 随机</button>
+      <button class="btn g" id="btnQuest">📜 新任务</button>
+      <button class="btn r wide" id="btnDoom">☠ 末日</button>
+    </div>
+    <div class="quest" id="quest">点「新任务」抽取一条委托（占位文案）</div>
+  </section>
+
+  <!-- 中：地图 -->
+  <section class="card stage" id="stage">
+    <svg id="map" preserveAspectRatio="xMidYMid meet">
+      <g id="camera"><g id="tilt">
+        <g id="lTerrain"></g><g id="lDeco"></g><g id="lFx"></g><g id="lMark"></g>
+      </g></g>
+    </svg>
+    <div class="stage-hint">拖拽平移 · 滚轮缩放 · 点击地点查看</div>
+    <div class="coord" id="coord">MAINLAND · 0 地点</div>
+    <div class="overlay" id="overlay"></div>
+  </section>
+
+  <!-- 右：详情 -->
+  <section class="card detail">
+    <h3>地点详情 <span>DETAIL</span></h3>
+    <div id="detail"><div class="empty">🗺️<br>在地图上点一个地点<br>查看它的临时说明</div></div>
+  </section>
+</main>
+
+<footer>
+  <div class="fbar">
+    <span class="dot"></span><span id="status">临时占位页 · 程序化体素生成，无外部依赖</span>
+    <span style="margin-left:auto;cursor:pointer;text-decoration:underline" id="btnNotes">构建备注 ▾</span>
+  </div>
+  <div class="notes" id="notes">
+    <ul>
+      <li><b>视觉构成</b>：主页主视觉 = 等距方块世界地图（参考 MC 式体素关卡选择界面），左控制 / 中地图 / 右详情三段式。</li>
+      <li><b>3D 建模</b>：当前用 <code>SVG + CSS</code> 程序化体素（零依赖、可即时预览），不是 3D 建模；若要换成真实 3D，把 <code>#tilt</code> 层替换为 three.js 相机输出即可，交互与数据层不用动。</li>
+      <li><b>AI 辅助出图</b>：详情面板里的插画位是 <code>AI 出图占位（512×512）</code>，出图后直接替换该 <code>data-ai-slot</code> 区块；地图贴图同理用 biome 色卡统一风格。</li>
+      <li><b>点击区域跳转</b>：所有可点击区域都带 <code>data-target</code>（地点 / 导航 / CTA），当前为占位提示，接后端时替换为真实路由。</li>
+      <li><b>动画</b>：方块升起入场、呼吸浮动、水面波纹、熔岩脉冲、余烬粒子、光环脉冲、昼夜/蓝图切换、末日闪屏抖动。均为 CSS，可整段删改。</li>
+    </ul>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ============ 基础工具 ============ */
+const NS = 'http://www.w3.org/2000/svg';
+const el = (n, a = {}) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const $ = id => document.getElementById(id);
+const HW = 30, HH = 15, ZH = 24;              // 等距投影参数
+const px = (x, y, z) => [(x - y) * HW, (x + y) * HH - z * ZH];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function h2(x,y,s){let n=Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(s,1442695041);n=(n^(n>>>13))>>>0;n=Math.imul(n,1274126177);return((n^(n>>>16))>>>0)/4294967295;}
+function vnoise(x,y,s){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+  const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+  const a=h2(xi,yi,s),b=h2(xi+1,yi,s),c=h2(xi,yi+1,s),d=h2(xi+1,yi+1,s);
+  return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;}
+function fbm(x,y,s){let t=0,a=.5,f=1;for(let i=0;i<4;i++){t+=a*vnoise(x*f,y*f,s+i*17);f*=2;a*=.5;}return t;}
+
+/* ============ 数据：生物群系 / 区域 / 地点 ============ */
+const B = {
+  grass : ['#7ad24f','#4f9c33','#3a7526'],
+  forest: ['#5cbe46','#3c8c2c','#2d6b20'],
+  sand  : ['#ecd089','#c9ab63','#a68c4c'],
+  canyon: ['#d98b4a','#b06c34','#8a5027'],
+  stone : ['#9a9aa8','#71717e','#57575f'],
+  snow  : ['#f4f7ff','#cdd6ea','#a7b3cc'],
+  water : ['#2f7fbf','#22618f','#1a4a6e'],
+  lava  : ['#ff9a3c','#d1551f','#8f3312'],
+  endst : ['#dfd9a4','#b8b181','#8f8a63'],
+  voidp : ['#3b2a5c','#291d42','#1b1230'],
+};
+const DECO = { forest:'#2f7a2a', grass:'#3f8f34', sand:'#c9a24a', canyon:'#a35f2c', snow:'#b9c6de', stone:'#6d6d78', endst:'#9a9470' };
+
+const REGIONS = {
+  main: {
+    name:'主大陆', en:'MAINLAND', seed:20260808, icon:'🌄', mode:'continent',
+    desc:'酒馆门口那片被走过太多遍的大陆。地形完整，六个地点全部开放。',
+    spots:[
+      {id:'creeper', name:'苦力怕之林', emoji:'💥', x:5,  y:4,  danger:1, state:'open',   target:'/world/creeper-forest', tags:['新手','采集','火药'],   desc:'潮湿的针叶林，草丛里总有什么在滋滋作响。砍树可以，别站着不动。'},
+      {id:'pumpkin', name:'南瓜牧场',   emoji:'🎃', x:12, y:4,  danger:1, state:'open',   target:'/world/pumpkin-ranch',  tags:['补给','友好','南瓜派'], desc:'旅人自建的农场，篱笆歪歪扭扭，但南瓜酒是整片大陆最甜的。'},
+      {id:'redstone',name:'红石矿洞',   emoji:'🔴', x:4,  y:11, danger:3, state:'open',   target:'/world/redstone-mine',  tags:['矿脉','机关','红石'],   desc:'三层竖井，墙上全是前任矿工的涂鸦和没拆完的陷阱。'},
+      {id:'cave',    name:'潮湿洞穴',   emoji:'💧', x:8,  y:9,  danger:2, state:'open',   target:'/world/damp-cave',      tags:['洞窟','蘑菇','滴水'],   desc:'常年滴水的钟乳洞，回声比脚步还大。带灯。'},
+      {id:'temple',  name:'沙漠神庙',   emoji:'🏜️',x:14, y:12, danger:4, state:'open',   target:'/world/desert-temple',  tags:['解谜','宝藏','TNT'],   desc:'沙丘下的方形遗迹，中间那块彩色羊毛千万别踩。'},
+      {id:'cactus',  name:'仙人掌峡谷', emoji:'🌵', x:14, y:7,  danger:3, state:'open',   target:'/world/cactus-canyon',  tags:['峡谷','商队','干旱'],   desc:'红色砂岩裂开的深谷，风一过，仙人掌会自己响。'},
+      {id:'trial',   name:'每日试炼',   emoji:'🏆', x:9,  y:14, danger:2, state:'open',   target:'/world/daily-trial',    tags:['每日','轮换','奖励'],   desc:'门口立着一块刷新中的木牌，今天的词条还没写出来。'},
+    ]
+  },
+  isles: {
+    name:'岛屿之地', en:'ISLANDS', seed:777, icon:'⛵', mode:'islands',
+    desc:'碎在海上的一串岛。船程都不长，但天气说变就变。',
+    spots:[
+      {id:'coral',  name:'珊瑚浅滩',   emoji:'🐠', x:4,  y:5,  danger:1, state:'open',   target:'/isles/coral-shoal', tags:['潜水','采集','浅海'], desc:'水浅到能看见脚踝，鱼群会围过来咬你的靴子。'},
+      {id:'lighthouse',name:'灯塔孤岛',emoji:'🗼', x:12, y:4,  danger:2, state:'open',   target:'/isles/lighthouse',  tags:['地标','导航','守塔人'], desc:'整片海域唯一还亮着的灯。守塔人不说话，只指方向。'},
+      {id:'wreck',  name:'沉船墓场',   emoji:'☠️', x:6,  y:12, danger:4, state:'danger', target:'/isles/shipwreck',   tags:['高危','打捞','骷髅'], desc:'桅杆像枯林一样插在水面下。潮退时能捡到东西，也可能捡到别的。'},
+      {id:'skyfarm',name:'云上农场',   emoji:'☁️', x:14, y:10, danger:2, state:'open',   target:'/isles/sky-farm',    tags:['浮空','种植','风车'], desc:'被风托住的几块草皮，掉下去要重新爬上来。'},
+      {id:'whale',  name:'鲸落深渊',   emoji:'🐋', x:9,  y:15, danger:5, state:'locked', target:'/isles/whalefall',   tags:['未解锁','深海','鲸骨'], desc:'海沟里的巨大骨架，地图上标注着「暂不开放」。'},
+    ]
+  },
+  dims: {
+    name:'其他维度', en:'OTHER DIM', seed:1313, icon:'🟣', mode:'dims',
+    desc:'不在这片天空下的地方。去之前先把装备修好。',
+    spots:[
+      {id:'forge',  name:'烈焰锻造厂', emoji:'🔥', x:5,  y:4,  danger:5, state:'danger', target:'/dims/blaze-forge',  tags:['熔岩','锻造','高危'], desc:'熔岩河上悬着铁桥，锻炉从没熄过。这里的铁匠只收烈焰棒。'},
+      {id:'corridor',name:'末影回廊',  emoji:'🟣', x:12, y:6,  danger:4, state:'locked', target:'/dims/end-corridor',tags:['未解锁','传送','末影'], desc:'一串断在空间里的石台，走错一步就回到起点。'},
+      {id:'arena',  name:'虚空竞技场', emoji:'⚔️', x:8,  y:12, danger:5, state:'danger', target:'/dims/void-arena',  tags:['PVP','高危','排名'], desc:'没有边的擂台。掉下去的人不会被记在名单上。'},
+      {id:'star',   name:'星界灯塔',   emoji:'✨', x:14, y:13, danger:3, state:'locked', target:'/dims/astral-beacon',tags:['未解锁','星界','观星'], desc:'据说站在顶上能看见所有维度。暂未开放。'},
+    ]
+  }
+};
+
+const QUESTS = [
+  '去<b>苦力怕之林</b>收 3 份火药，注意爆炸半径 3 格。',
+  '为酒馆补 5 桶蜂蜜酒，<b>南瓜牧场</b>今晚有货。',
+  '清理<b>红石矿洞</b>第二层的塌方，别碰墙上的拉杆。',
+  '护送商队穿过<b>仙人掌峡谷</b>，日落前必须出谷。',
+  '在<b>烈焰锻造厂</b>重铸你的剑，代价是一根烈焰棒。',
+  '从<b>沉船墓场</b>带回一面还能认出字的旗。',
+  '点亮<b>灯塔孤岛</b>的灯，海上有船在等。',
+  '把<b>每日试炼</b>的木牌擦干净，看看今天写了什么。',
+];
+
+/* ============ 地图生成 ============ */
+const N = 18;
+let curRegion = 'main', markers = [], blocks = [], cam = {x:0,y:0,k:1};
+const lTerrain = $('lTerrain'), lDeco = $('lDeco'), lFx = $('lFx'), lMark = $('lMark');
+
+function shape(cfg, x, y, s){
+  const cx = (N-1)/2, cy = (N-1)/2;
+  if (cfg.mode === 'continent'){
+    const d = Math.hypot((x-cx)/8.6, (y-cy)/7.4);
+    return d + (fbm(x*.28, y*.28, s) - .5) * .95 < 1.02;
+  }
+  if (cfg.mode === 'islands'){
+    const d = Math.hypot((x-cx)/9, (y-cy)/9);
+    return fbm(x*.34, y*.34, s) > .60 && d < 1.15;
+  }
+  const d = Math.hypot((x-cx)/9.5, (y-cy)/9.5);
+  return fbm(x*.42, y*.42, s) > .70 && d < 1.2;
+}
+
+function biomeOf(cfg, x, y, s){
+  const m = fbm(x*.3+11, y*.3-7, s+91), t = fbm(x*.22-4, y*.22+5, s+33);
+  if (cfg.mode === 'dims') return m > .62 ? 'lava' : 'endst';
+  if (cfg.mode === 'islands') return t > .60 ? 'sand' : (m > .58 ? 'grass' : 'stone');
+  if (t > .62) return m > .5 ? 'canyon' : 'sand';
+  if (t < .34) return 'snow';
+  if (m > .60) return 'forest';
+  if (m < .36) return 'stone';
+  return 'grass';
+}
+
+function cubeFaces(x, y, z0, z1, size, colors){
+  const A = px(x,          y,          z1), B = px(x + size, y,          z1),
+        C = px(x + size,   y + size,   z1), D = px(x,        y + size,   z1);
+  const bB = px(x + size,  y,          z0), bC = px(x + size, y + size,  z0), bD = px(x, y + size, z0);
+  return {
+    top:   `${A} ${B} ${C} ${D}`.replace(/,/g, ','),
+    right: `${B} ${C} ${bC} ${bB}`,
+    left:  `${D} ${C} ${bC} ${bD}`,
+    colors
+  };
+}
+const pts = p => p.map(v => v[0].toFixed(1) + ',' + v[1].toFixed(1)).join(' ');
+function poly(list){
+  const g = el('g', {class:'blk' + (list.cls ? ' ' + list.cls : '')});
+  g.style.animationDelay = list.delay + 's';
+  const top = el('polygon', {points: pts([px(list.x, list.y, list.z1), px(list.x+list.size, list.y, list.z1), px(list.x+list.size, list.y+list.size, list.z1), px(list.x, list.y+list.size, list.z1)]), fill: list.colors[0], class:'face top'});
+  const right = el('polygon', {points: pts([px(list.x+list.size, list.y, list.z1), px(list.x+list.size, list.y+list.size, list.z1), px(list.x+list.size, list.y+list.size, list.z0), px(list.x+list.size, list.y, list.z0)]), fill: list.colors[1], class:'face'});
+  const left = el('polygon', {points: pts([px(list.x, list.y+list.size, list.z1), px(list.x+list.size, list.y+list.size, list.z1), px(list.x+list.size, list.y+list.size, list.z0), px(list.x, list.y+list.size, list.z0)]), fill: list.colors[2], class:'face'});
+  g.append(left, right, top);
+  return g;
+}
+
+function buildRegion(key){
+  const cfg = REGIONS[key], s = cfg.seed;
+  lTerrain.innerHTML = ''; lDeco.innerHTML = ''; lFx.innerHTML = ''; lMark.innerHTML = '';
+  markers = []; blocks = [];
+  const grid = [];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++){
+    const isLand = shape(cfg, x, y, s);
+    grid.push({x, y, land:isLand, b: isLand ? biomeOf(cfg, x, y, s) : 'water'});
+  }
+  // 强制地点所在格为陆地
+  cfg.spots.forEach(sp => {
+    const g = grid.find(c => c.x === sp.x && c.y === sp.y);
+    if (g){ g.land = true; g.b = g.b === 'water' ? 'grass' : g.b; }
+  });
+
+  const list = [], deco = [];
+  grid.forEach(c => {
+    const rnd = h2(c.x, c.y, s + 7);
+    const delay = (c.x + c.y) * 0.035 + rnd * 0.18;
+    if (!c.land){
+      list.push({x:c.x, y:c.y, z0:-.35, z1:-.05, size:1, colors:B.water, delay, cls:'', water:true, kind:1});
+      return;
+    }
+    let h = 1 + Math.round(fbm(c.x*.35, c.y*.35, s+5) * 2.6);
+    if (c.b === 'snow' || c.b === 'canyon') h += 1;
+    if (c.b === 'lava') h += 1;
+    const z0 = (cfg.mode === 'dims') ? h - 2.6 : 0;   // 其他维度：悬空碎块
+    list.push({x:c.x, y:c.y, z0, z1:h, size:1, colors:B[c.b], delay, cls:(c.b === 'lava' ? 'lavablk' : ''), biome:c.b, h, kind:1});
+
+    // 装饰：树 / 岩柱 / 仙人掌，与地形一起参与遮挡排序
+    const rd = h2(c.x + 3, c.y - 2, s + 21);
+    if (rd > (c.b === 'forest' ? .42 : .82)){
+      const size = .42, off = (1 - size) / 2, col = DECO[c.b] || '#3f8f34';
+      deco.push({x:c.x + off, y:c.y + off, z0:h, z1:h + (c.b === 'snow' ? 1.6 : 1.1), size,
+                 colors:[col, '#00000055', '#00000077'], delay:delay + .2, cls:'tree', kind:2});
+    }
+  });
+
+  const draw = list.concat(deco).sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.kind - b.kind);
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  draw.forEach(it => {
+    const g = poly(it);
+    if (it.water) g.querySelectorAll('.face').forEach(f => { f.classList.add('water'); f.style.animationDelay = (Math.random()*3).toFixed(2) + 's'; });
+    if (it.cls === 'lavablk') g.querySelectorAll('.face').forEach(f => f.classList.add('lava'));
+    lTerrain.appendChild(g);
+    blocks.push(g);
+    const p = px(it.x, it.y, it.z1);
+    minX = Math.min(minX, p[0] - 60); maxX = Math.max(maxX, p[0] + 60);
+    minY = Math.min(minY, p[1] - 130); maxY = Math.max(maxY, p[1] + 60);
+  });
+
+  // 粒子：熔岩余烬 / 林间萤火
+  list.forEach(it => {
+    if (it.water) return;
+    const rnd = h2(it.x + 3, it.y - 2, s + 21);
+    if (it.biome === 'lava' && rnd < .32){
+      const p = px(it.x + .5, it.y + .5, it.z1 + .2);
+      const dot = el('circle', {cx:p[0], cy:p[1], r:2.6, fill:'#ffb457', class:'spark'});
+      dot.style.animationDelay = (Math.random()*3).toFixed(2) + 's';
+      lFx.appendChild(dot);
+    }
+    if ((it.biome === 'forest' || it.biome === 'grass') && rnd < .16){
+      const p = px(it.x + .5, it.y + .5, it.z1 + 1.4);
+      const dot = el('circle', {cx:p[0], cy:p[1], r:2, fill:'#eaff9a', class:'spark'});
+      dot.style.animationDelay = (Math.random()*3).toFixed(2) + 's';
+      dot.style.animationDuration = (4 + Math.random()*3).toFixed(1) + 's';
+      lFx.appendChild(dot);
+    }
+  });
+
+  // viewBox 自适应
+  const svg = $('map');
+  svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+  cam = {x:0, y:0, k:1}; applyCam();
+
+  // 地点标记
+  cfg.spots.forEach(sp => addMarker(sp, list, cfg));
+  layoutMarkers();
+  $('coord').textContent = `${cfg.en} · ${cfg.spots.length} 地点`;
+}
+
+function addMarker(sp, list, cfg){
+  const blk = list.find(i => i.x === sp.x && i.y === sp.y && !i.water) || {z1:1};
+  const p = px(sp.x, sp.y, blk.z1);
+  const cx = p[0], cy = p[1] + HH;                  // 格子顶面中心
+  const g = el('g', {class:'marker' + (sp.state === 'locked' ? ' locked' : '')});
+  const cnt = el('g', {class:'cnt'}), inner = el('g', {class:'mInner'});
+
+  inner.appendChild(el('ellipse', {class:'ring2', cx:0, cy:0, rx:32, ry:16}));
+  inner.appendChild(el('ellipse', {class:'ring',  cx:0, cy:0, rx:24, ry:12}));
+  const plate = el('rect', {x:-17, y:-58, width:34, height:34, rx:2, class:'plate',
+    fill: sp.state === 'locked' ? '#4a5170' : (sp.state === 'danger' ? '#5a2222' : '#243a2a')});
+  inner.appendChild(plate);
+  const ico = el('text', {x:0, y:-35, 'text-anchor':'middle', 'font-size':'19'});
+  ico.textContent = sp.emoji;
+  inner.appendChild(ico);
+  if (sp.state === 'locked'){ const l = el('text', {x:14, y:-30, 'font-size':'12'}); l.textContent = '🔒'; inner.appendChild(l); }
+  if (sp.state === 'danger'){ const l = el('text', {x:14, y:-30, 'font-size':'12'}); l.textContent = '💀'; inner.appendChild(l); }
+
+  const label = el('g', {class:'label'});
+  const w = sp.name.length * 12 + 16;
+  label.appendChild(el('rect', {x:-w/2, y:-84, width:w, height:21, fill:'#0b0f1ccc', stroke:'#000', 'stroke-width':'2'}));
+  const t = el('text', {x:0, y:-69, 'text-anchor':'middle', 'font-size':'12', fill:'#ffe9a8'});
+  t.textContent = sp.name;
+  label.appendChild(t);
+  inner.appendChild(label);
+
+  const hit = el('circle', {cx:0, cy:-41, r:34, fill:'transparent'});
+  inner.appendChild(hit);
+
+  cnt.appendChild(inner); g.appendChild(cnt); lMark.appendChild(g);
+  g.addEventListener('click', e => { e.stopPropagation(); select(sp, g); });
+  markers.push({node:g, cnt, bx:cx, by:cy, sp});
+}
+
+function layoutMarkers(){
+  const bp = $('tilt').classList.contains('blueprint');
+  markers.forEach(m => {
+    m.node.setAttribute('transform', `translate(${m.bx} ${m.by * (bp ? .45 : 1)})`);
+    m.cnt.style.transform = bp ? 'scaleY(2.222)' : 'scaleY(1)';
+  });
+}
+
+/* ============ 相机 ============ */
+function applyCam(){ $('camera').setAttribute('transform', `translate(${cam.x} ${cam.y}) scale(${cam.k})`); }
+function svgPoint(evt){
+  const svg = $('map'), pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function focusOn(x, y, k){
+  const svg = $('map'), vb = svg.viewBox.baseVal;
+  const tx = vb.x + vb.width / 2 - x * k, ty = vb.y + vb.height / 2 - y * k;
+  animCam({x:tx, y:ty, k});
+}
+let camAnim = null;
+function animCam(to){
+  cancelAnimationFrame(camAnim);
+  const from = {...cam}, t0 = performance.now(), dur = 620;
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  (function step(now){
+    const t = clamp((now - t0) / dur, 0, 1), e = ease(t);
+    cam = {x:from.x + (to.x - from.x) * e, y:from.y + (to.y - from.y) * e, k:from.k + (to.k - from.k) * e};
+    applyCam();
+    if (t < 1) camAnim = requestAnimationFrame(step);
+  })(performance.now());
+}
+const map = $('map');
+map.addEventListener('wheel', e => {
+  e.preventDefault();
+  const p = svgPoint(e);
+  const k2 = clamp(cam.k * (e.deltaY < 0 ? 1.14 : 0.88), .5, 3.2);
+  cam.x = p.x - (p.x - cam.x) * (k2 / cam.k); cam.y = p.y - (p.y - cam.y) * (k2 / cam.k); cam.k = k2;
+  applyCam();
+}, {passive:false});
+let drag = null;
+map.addEventListener('pointerdown', e => { drag = {...svgPoint(e), cx:cam.x, cy:cam.y}; map.classList.add('drag'); map.setPointerCapture(e.pointerId); });
+map.addEventListener('pointermove', e => { if (!drag) return; const p = svgPoint(e); cam.x = drag.cx + (p.x - drag.x); cam.y = drag.cy + (p.y - drag.y); applyCam(); });
+map.addEventListener('pointerup', e => { drag = null; map.classList.remove('drag'); });
+
+/* ============ 详情面板 / 交互 ============ */
+function select(sp, node){
+  markers.forEach(m => m.node.classList.remove('sel'));
+  if (node) node.classList.add('sel');
+  const cfg = REGIONS[curRegion];
+  const stars = '★'.repeat(sp.danger) + '☆'.repeat(5 - sp.danger);
+  const stateTxt = sp.state === 'locked' ? '🔒 未解锁（占位）' : (sp.state === 'danger' ? '💀 高危' : '🟡 已开放');
+  $('detail').innerHTML = `
+    <div class="art" data-ai-slot="${sp.id}">AI 出图占位<br>512 × 512 · ${sp.name}</div>
+    <div class="kv">
+      <b>名称</b><span>${sp.emoji} ${sp.name}</span>
+      <b>所属</b><span>${cfg.icon} ${cfg.name}</span>
+      <b>危险度</b><span style="color:var(--gold)">${stars}</span>
+      <b>状态</b><span>${stateTxt}</span>
+    </div>
+    <div class="tags">${sp.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+    <div class="body" style="padding-top:8px">${sp.desc}</div>
+    <a class="go" href="#" data-target="${sp.target}">进入 ${sp.name} →</a>`;
+  const m = markers.find(mm => mm.sp === sp);
+  if (m) focusOn(m.bx, m.by, Math.max(cam.k, 1.25));
+}
+$('detail').addEventListener('click', e => {
+  const a = e.target.closest('[data-target]');
+  if (!a) return;
+  e.preventDefault();
+  toast(`跳转占位 → ${a.dataset.target}（接后端后替换为真实路由）`);
+});
+document.querySelector('header nav').addEventListener('click', e => {
+  const a = e.target.closest('a'); if (!a) return;
+  e.preventDefault();
+  document.querySelectorAll('header nav a').forEach(x => x.classList.remove('on'));
+  a.classList.add('on');
+  toast(`跳转占位 → ${a.dataset.target}`);
+});
+
+/* 区域 tab */
+const tabs = $('tabs');
+Object.keys(REGIONS).forEach(k => {
+  const cfg = REGIONS[k];
+  const b = document.createElement('button');
+  b.className = 'tab' + (k === curRegion ? ' on' : '');
+  b.innerHTML = `${cfg.icon} ${cfg.name} <i>${cfg.en}</i>`;
+  b.onclick = () => {
+    curRegion = k;
+    [...tabs.children].forEach(c => c.classList.remove('on'));
+    b.classList.add('on');
+    cam = {x:0, y:0, k:1};
+    buildRegion(k);
+    $('detail').innerHTML = `<div class="empty">🗺️<br>${cfg.desc}<br><br>点一个地点看详情</div>`;
+    $('status').textContent = `${cfg.name} · ${cfg.spots.length} 个地点 · 程序化体素生成`;
+  };
+  tabs.appendChild(b);
+});
+
+/* 随机 / 新任务 / 末日 */
+$('btnRandom').onclick = () => {
+  const open = markers.filter(m => m.sp.state !== 'locked');
+  const m = open[Math.floor(Math.random() * open.length)];
+  if (!m) return;
+  select(m.sp, m.node);
+  toast(`随机前往：${m.sp.name}`);
+};
+let typer = null;
+$('btnQuest').onclick = () => {
+  const box = $('quest'), txt = QUESTS[Math.floor(Math.random() * QUESTS.length)];
+  clearInterval(typer); box.innerHTML = '';
+  let i = 0;
+  typer = setInterval(() => {
+    i++; box.innerHTML = '📜 ' + txt.slice(0, i);
+    if (i >= txt.length) clearInterval(typer);
+  }, 26);
+};
+$('btnDoom').onclick = () => {
+  document.body.classList.add('doomsday');
+  toast('☠ 末日降临（占位特效 · 2.4s）');
+  setTimeout(() => document.body.classList.remove('doomsday'), 2400);
+};
+$('btnDay').onclick = () => {
+  document.body.classList.toggle('day');
+  $('btnDay').classList.toggle('on', document.body.classList.contains('day'));
+};
+$('btnBlue').onclick = () => {
+  $('tilt').classList.toggle('blueprint');
+  $('btnBlue').classList.toggle('on', $('tilt').classList.contains('blueprint'));
+  layoutMarkers();
+};
+$('btnNotes').onclick = () => {
+  const n = $('notes'); n.classList.toggle('on');
+  $('btnNotes').textContent = n.classList.contains('on') ? '构建备注 ▴' : '构建备注 ▾';
+};
+
+/* toast */
+let tt = null;
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+/* 星空 & 云 */
+(function initSky(){
+  const f = $('starField');
+  for (let i = 0; i < 46; i++){
+    const s = document.createElement('div');
+    s.className = 'star';
+    const sz = 1 + Math.random() * 2;
+    s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}vw;top:${Math.random()*70}vh;animation-duration:${2+Math.random()*4}s;animation-delay:${Math.random()*3}s`;
+    f.appendChild(s);
+  }
+  const ov = $('overlay');
+  [[8, 26, 46], [26, 38, 62], [46, 22, 34]].forEach(([top, dur, w], i) => {
+    const c = document.createElement('div');
+    c.className = 'cloud';
+    c.style.cssText = `top:${top}%;width:${w*3}px;animation-duration:${dur}s;animation-delay:${-i*9}s`;
+    ov.appendChild(c);
+  });
+})();
+
+/* 启动 */
+buildRegion('main');
+</script>
+</body>
+</html>
